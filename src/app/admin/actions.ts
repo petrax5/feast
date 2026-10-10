@@ -369,6 +369,44 @@ export async function addHouseForDateAction(_: FormState, form: FormData): Promi
   return { ok: "Added for that date only." };
 }
 
+/** Changes one house's meals (clients/specials) for a single date's delivery. Other dates are untouched. */
+export async function updateStopForDateAction(_: FormState, form: FormData): Promise<FormState> {
+  await requireAdmin();
+  const routeId = Number(form.get("route_id")) || null;
+  const date = str(form, "date");
+  const meal = str(form, "meal");
+  const address = str(form, "address");
+  if (!routeId || !isDate(date) || !(MEALS as readonly string[]).includes(meal) || !address)
+    return { error: "Something went wrong. Try again." };
+  if (date < (await today())) return { error: "That date has already passed." };
+  let qtys: Record<string, number> = {};
+  try {
+    qtys = Object.fromEntries(
+      Object.entries(JSON.parse(String(form.get("items") ?? "{}")))
+        .map(([k, v]) => [k, Math.max(0, Math.floor(Number(v) || 0))] as const)
+        .filter(([, v]) => v > 0),
+    );
+  } catch {
+    return { error: "Something went wrong reading the form. Try again." };
+  }
+  if (!Object.keys(qtys).length) return { error: "Give this house at least one meal — or remove it for the day instead." };
+  const key = routeKey(routeId, weekdayOf(date), meal);
+  await ensureRuns(date);
+  const run = await one<Run>("SELECT * FROM runs WHERE route_key=$1 AND run_date=$2", [key, date]);
+  if (!run) return { error: "No delivery found for that date." };
+  const dishes = [...(await dishTypes(true))].sort((a, b) => a.sort - b.sort || a.id - b.id);
+  const items = dishes
+    .filter((d) => (qtys[String(d.id)] ?? 0) > 0)
+    .map((d) => ({ name: d.name, qty: qtys[String(d.id)], special: !d.is_default }));
+  const stops = run.stops as RunStop[];
+  const i = stops.findIndex((st) => st.address === address);
+  if (i < 0) return { error: "House not found on that delivery." };
+  const updated = stops.map((st, j) => (j === i ? { ...st, items } : st));
+  await sql("UPDATE runs SET stops=$2, customized=true WHERE id=$1", [run.id, JSON.stringify(updated)]);
+  revalidatePath("/admin", "layout");
+  return { ok: "Saved for that date only." };
+}
+
 export async function deleteDeliveryRouteAction(id: number) {
   await requireAdmin();
   await sql("DELETE FROM delivery_routes WHERE id=$1", [id]);

@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { MEALS, MEAL_LABEL } from "@/lib/core";
 import { FormMessage, Submit } from "@/components/ui";
-import { addHouseForDateAction, overrideDriverAction, removeHouseForDateAction } from "../../../actions";
+import { addHouseForDateAction, overrideDriverAction, removeHouseForDateAction, updateStopForDateAction } from "../../../actions";
 
 type HouseOpt = { id: number; name: string; address: string };
 type DriverOpt = { id: number; name: string; active: boolean };
@@ -70,5 +70,63 @@ export function DriverOverrideForm({ routeId, date, meal, drivers, currentId }: 
       </div>
       <FormMessage state={state} />
     </form>
+  );
+}
+/** One house on one date's delivery: tap to expand and edit its meals (clients/specials) for that date only. */
+export function StopEditor({ routeId, date, meal, stop, dishes }: {
+  routeId: number;
+  date: string;
+  meal: string;
+  stop: { name: string; address: string; items: { name: string; qty: number; special: boolean }[] };
+  dishes: { id: number; name: string; is_default: boolean }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, action] = useActionState(updateStopForDateAction, undefined);
+  const qtyOf = (id: number) => stop.items.find((i) => i.name === dishes.find((d) => d.id === id)?.name)?.qty ?? 0;
+  const [qtys, setQtys] = useState<Record<string, number>>(() =>
+    Object.fromEntries(dishes.map((d) => [String(d.id), qtyOf(d.id)])));
+  const setQty = (id: number, v: string) =>
+    setQtys((q) => ({ ...q, [String(id)]: Math.max(0, Math.floor(Number(v) || 0)) }));
+  const total = Object.values(qtys).reduce((a, n) => a + n, 0);
+  const regular = dishes.find((d) => d.is_default);
+  const specials = dishes.filter((d) => !d.is_default);
+
+  const qtyRow = (d: { id: number; name: string }, label: string, special: boolean) => (
+    <label key={d.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 h-14 ${special ? "border-special-soft bg-special-soft/50" : "border-line"}`}>
+      <span className={`font-semibold ${special ? "text-special" : ""}`}>{label}</span>
+      <input
+        type="number" inputMode="numeric" min={0} aria-label={label}
+        className="w-20 h-10 text-right rounded-xl border border-line bg-white px-3 text-[17px] font-semibold outline-none focus:border-ink"
+        value={qtys[String(d.id)] || ""}
+        onChange={(e) => setQty(d.id, e.target.value)}
+      />
+    </label>
+  );
+
+  return (
+    <div className="rounded-2xl border border-line">
+      <div className="flex items-center gap-2 px-4 py-3">
+        <button type="button" className="flex-1 min-w-0 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
+          <p className="font-semibold truncate">{stop.name || stop.address}</p>
+          <p className="text-[13px] text-muted">{total} meal{total === 1 ? "" : "s"} · tap to edit</p>
+        </button>
+        <span className="text-muted text-lg" aria-hidden>{open ? "▾" : "▸"}</span>
+        <RemoveHouseForm routeId={routeId} date={date} meal={meal} address={stop.address} />
+      </div>
+      {open && (
+        <form action={action} className="px-4 pb-4 space-y-2 border-t border-line pt-3">
+          <input type="hidden" name="route_id" value={routeId} />
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="meal" value={meal} />
+          <input type="hidden" name="address" value={stop.address} />
+          <input type="hidden" name="items" value={JSON.stringify(qtys)} />
+          {regular && qtyRow(regular, "Clients", false)}
+          {specials.map((d) => qtyRow(d, d.name, true))}
+          {specials.length === 0 && <p className="text-sm text-muted">Add special types (Vegan, Diabetic…) in Settings.</p>}
+          <FormMessage state={state} />
+          <Submit className="btn-primary w-full">Save for this date</Submit>
+        </form>
+      )}
+    </div>
   );
 }

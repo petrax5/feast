@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { deliveryRoutes, drivers, houses, runsForDate, slotHouses, today } from "@/lib/data";
+import { deliveryRoutes, dishTypes, drivers, houses, runsForDate, slotHouses, today } from "@/lib/data";
 import { MEALS, MEAL_LABEL, WEEKDAY_LONG, formatDate, isDate, routeKey, stopTotal, weekdayOf } from "@/lib/core";
 import { sql } from "@/lib/db";
 import { TopBar, Empty } from "@/components/chrome";
 import { requireAdmin } from "@/lib/auth";
-import { AddHouseForm, DriverOverrideForm, RemoveHouseForm } from "./day-forms";
+import { AddHouseForm, DriverOverrideForm, StopEditor } from "./day-forms";
 
 /** One date of a route: change houses or the driver for that date only. */
 export default async function RouteDay({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ date?: string }> }) {
@@ -12,7 +12,9 @@ export default async function RouteDay({ params, searchParams }: { params: Promi
   const id = Number((await params).id);
   const { date } = await searchParams;
   if (!date || !isDate(date)) notFound();
-  const [routes, ds, hs, now] = await Promise.all([deliveryRoutes(), drivers(), houses(), today()]);
+  const [routes, ds, hs, now, allDishes] = await Promise.all([deliveryRoutes(), drivers(), houses(), today(), dishTypes(true)]);
+  const dishList = [...allDishes].sort((a, b) => a.sort - b.sort || a.id - b.id);
+  const dishOpts = dishList.map((d) => ({ id: d.id, name: d.name, is_default: d.is_default }));
   const route = routes.find((r) => r.id === id);
   if (!route) notFound();
 
@@ -59,8 +61,14 @@ export default async function RouteDay({ params, searchParams }: { params: Promi
           const run = runs.find((r) => r.route_key === key);
           const driverId = run?.driver_id ?? overrides.find((o) => o.route_key === key)?.driver_id ?? s.driver_id;
           const stops = run
-            ? run.stops.map((st) => ({ name: st.name, address: st.address, total: stopTotal(st) }))
-            : slotHouses(route, s).map((h) => ({ name: h.name, address: h.address, total: null as number | null }));
+            ? run.stops.map((st) => ({ name: st.name, address: st.address, items: st.items }))
+            : slotHouses(route, s).map((h) => ({
+                name: h.name,
+                address: h.address,
+                items: dishList
+                  .filter((d) => (h.items[String(d.id)] ?? 0) > 0)
+                  .map((d) => ({ name: d.name, qty: h.items[String(d.id)], special: !d.is_default })),
+              }));
           const onAddrs = new Set(stops.map((st) => st.address));
           const addable = hs.filter((h) => h.active && !onAddrs.has(h.address))
             .map((h) => ({ id: h.id, name: h.name, address: h.address }));
@@ -83,16 +91,19 @@ export default async function RouteDay({ params, searchParams }: { params: Promi
 
               <div className="space-y-2">
                 <h3 className="font-semibold text-[15px]">Houses <span className="text-muted font-medium">({stops.length})</span></h3>
-                {stops.map((st) => (
-                  <div key={st.address} className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{st.name || st.address}</p>
-                      {st.name && <p className="text-[13px] text-muted truncate">{st.address}</p>}
+                {stops.map((st) =>
+                  editable ? (
+                    <StopEditor key={st.address + JSON.stringify(st.items)} routeId={route.id} date={date} meal={s.meal} stop={st} dishes={dishOpts} />
+                  ) : (
+                    <div key={st.address} className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{st.name || st.address}</p>
+                        {st.name && <p className="text-[13px] text-muted truncate">{st.address}</p>}
+                      </div>
+                      <span className="text-sm font-bold tabular-nums shrink-0">{stopTotal(st)} meals</span>
                     </div>
-                    {st.total !== null && <span className="text-sm font-bold tabular-nums shrink-0">{st.total} meals</span>}
-                    {editable && <RemoveHouseForm routeId={route.id} date={date} meal={s.meal} address={st.address} />}
-                  </div>
-                ))}
+                  )
+                )}
                 {stops.length === 0 && <p className="text-sm text-muted">No houses on this delivery.</p>}
               </div>
 
