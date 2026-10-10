@@ -1,0 +1,13 @@
+node_modules
+.next
+.data
+.env*.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+.vercel
+.env*
+.agents
+.claude/skills
+skills-lock.json

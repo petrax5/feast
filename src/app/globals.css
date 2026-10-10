@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Feast Mode Catering: logo green + black */
+  --color-bg: #f4f5f1;
+  --color-card: #ffffff;
+  --color-ink: #111111;
+  --color-muted: #6b6e66;
+  --color-line: #e3e5de;
+  --color-brand: #7cb826;
+  --color-brand-dark: #6ba31d;
+  --color-brand-ink: #4a8212;
+  --color-done: #3c7a0e;
+  --color-done-soft: #eaf5dc;
+  --color-special: #b45309;
+  --color-special-soft: #fdf0d8;
+  --color-danger: #c53030;
+}
+
+html { -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 h-12 font-semibold text-[15px] transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none select-none;
+}
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 h-12 font-semibold text-[15px] transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none select-none bg-brand text-ink font-bold hover:bg-brand-dark;
+}
+@utility btn-dark {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 h-12 font-semibold text-[15px] transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none select-none bg-ink text-white;
+}
+@utility btn-done {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 h-12 font-semibold text-[15px] transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none select-none bg-done text-white;
+}
+@utility btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 h-12 font-semibold text-[15px] transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none select-none bg-white border border-line text-ink hover:bg-bg;
+}
+@utility btn-sm {
+  @apply h-9 px-3 rounded-xl text-sm;
+}
+@utility card {
+  @apply bg-card rounded-3xl border border-line;
+}
+@utility field {
+  @apply block w-full h-12 rounded-2xl border border-line bg-white px-4 text-[16px] outline-none focus:border-ink transition;
+}
+@utility label {
+  @apply block text-[13px] font-semibold text-muted mb-1.5;
+}
+@utility chip {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[13px] font-semibold;
+}
+@utility chip-special {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[13px] font-semibold bg-special-soft text-special;
+}
+@utility chip-done {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[13px] font-semibold bg-done-soft text-done;
+}
+@utility chip-muted {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[13px] font-semibold bg-bg text-muted;
+}
+@utility toggle {
+  @apply inline-flex items-center justify-center h-10 min-w-12 px-3 rounded-xl border border-line bg-white text-sm font-semibold cursor-pointer select-none has-[:checked]:bg-brand has-[:checked]:text-ink has-[:checked]:border-brand;
+}
