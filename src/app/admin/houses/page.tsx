@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { deliveryRoutes, dishTypes, houses } from "@/lib/data";
-import { houseTotal } from "@/lib/core";
+import { houseTotal, scheduleSummary } from "@/lib/core";
 import { TopBar, Empty } from "@/components/chrome";
 
 export default async function HousesPage() {
@@ -39,6 +39,9 @@ export default async function HousesPage() {
                 </div>
               )}
               {h.notes && <p className="text-sm text-muted mt-2 line-clamp-2">📝 {h.notes}</p>}
+              {scheduleSummary(h.schedule) && (
+                <p className="text-sm text-muted mt-2">📅 <span className="font-semibold text-ink">{scheduleSummary(h.schedule)}</span></p>
+              )}
               <p className="text-sm mt-2">
                 {inRoutes.length ? (
                   <span className="text-muted">Route: <span className="font-semibold text-ink">{inRoutes.join(", ")}</span></span>

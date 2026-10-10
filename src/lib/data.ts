@@ -124,6 +124,24 @@ export function slotHouses(route: DeliveryRoute, slot: RouteSlot) {
   return route.houses.filter((h) => h.active && h.meals.includes(slot.meal) && !slot.skip.includes(h.id));
 }
 
+/** The route's driver: the driver assigned to most of its shifts. */
+export function routeDriverId(route: DeliveryRoute): number | null {
+  const counts = new Map<number, number>();
+  for (const s of route.slots) if (s.driver_id) counts.set(s.driver_id, (counts.get(s.driver_id) ?? 0) + 1);
+  let best: number | null = null, bestN = 0;
+  for (const [id, n] of counts) if (n > bestN) { best = id; bestN = n; }
+  return best;
+}
+
+/** Weekdays (0-6) this route delivers: a shift with a driver and at least one house on. */
+export function routeDeliveryWeekdays(route: DeliveryRoute): number[] {
+  const out: number[] = [];
+  for (let wd = 0; wd < 7; wd++) {
+    if (route.slots.some((s) => s.weekday === wd && s.driver_id && slotHouses(route, s).length > 0)) out.push(wd);
+  }
+  return out;
+}
+
 // ---------- day runs ----------
 
 const RUN_SELECT = `

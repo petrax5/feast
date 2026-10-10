@@ -175,6 +175,20 @@ export function routeKey(routeId: number, weekday: number, meal: string) {
   return `r${routeId}-${weekday}-${meal}`;
 }
 
+/** Compact summary of a house's weekly schedule: "every day", "Mon–Fri", "Sat–Sun", "Mon, Wed, Fri", or "" when none. */
+export function scheduleSummary(schedule: Record<string, string[]> | undefined | null): string {
+  const days = Object.keys(schedule ?? {})
+    .map(Number)
+    .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6 && ((schedule as Record<string, string[]>)[String(d)] ?? []).length > 0)
+    .sort((a, b) => a - b);
+  if (!days.length) return "";
+  if (days.length === 7) return "every day";
+  if (days.length === 2 && days[0] === 0 && days[1] === 6) return "Sat–Sun";
+  const consecutive = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
+  if (consecutive) return days.length === 1 ? WEEKDAYS[days[0]] : `${WEEKDAYS[days[0]]}–${WEEKDAYS[days[days.length - 1]]}`;
+  return days.map((d) => WEEKDAYS[d]).join(", ");
+}
+
 export function houseTotal(items: Record<string, number>) {
   return Object.values(items).reduce((n, q) => n + (Number(q) || 0), 0);
 }

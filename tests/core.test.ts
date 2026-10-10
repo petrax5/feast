@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  addDays, freezeStops, googleLegs, isDate, parseMoney, runTotals, todayIn, unfreezeStops, weekDates, weekStartOf, weekdayOf,
+  addDays, freezeStops, googleLegs, isDate, parseMoney, runTotals, scheduleSummary, todayIn, unfreezeStops, weekDates, weekStartOf, weekdayOf,
 } from "../src/lib/core.ts";
 
 test("pay week runs Friday to Thursday", () => {
@@ -78,4 +78,15 @@ test("google maps app links chain all stops with +to:", async () => {
   assert.equal(legs.length, 1);
   assert.equal(legs[0], "comgooglemaps://?daddr=1%20Main%20St%2C%20A+to:2%20Oak%20Ave%2C%20B+to:3%20Pine%20Rd%2C%20C&directionsmode=driving");
   assert.equal(googleAppLegs(Array.from({ length: 12 }, (_, i) => `${i}`)).length, 2);
+});
+
+test("schedule summaries read naturally", () => {
+  assert.equal(scheduleSummary({}), "");
+  assert.equal(scheduleSummary(undefined), "");
+  assert.equal(scheduleSummary({ 1: ["lunch"], 2: ["lunch"], 3: ["lunch"], 4: ["lunch"], 5: ["lunch"] }), "Mon–Fri");
+  assert.equal(scheduleSummary({ 0: ["dinner"], 1: ["dinner"], 2: ["dinner"], 3: ["dinner"], 4: ["dinner"], 5: ["dinner"], 6: ["dinner"] }), "every day");
+  assert.equal(scheduleSummary({ 6: ["lunch"], 0: ["lunch"] }), "Sat–Sun");
+  assert.equal(scheduleSummary({ 1: ["lunch"], 3: ["lunch"], 5: ["dinner"] }), "Mon, Wed, Fri");
+  assert.equal(scheduleSummary({ 3: ["lunch"] }), "Wed");
+  assert.equal(scheduleSummary({ 1: [], 2: ["lunch"] }), "Tue");
 });

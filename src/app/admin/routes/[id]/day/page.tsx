@@ -1,0 +1,108 @@
+import { notFound } from "next/navigation";
+import { deliveryRoutes, drivers, houses, runsForDate, slotHouses, today } from "@/lib/data";
+import { MEALS, MEAL_LABEL, WEEKDAY_LONG, formatDate, isDate, routeKey, stopTotal, weekdayOf } from "@/lib/core";
+import { sql } from "@/lib/db";
+import { TopBar, Empty } from "@/components/chrome";
+import { requireAdmin } from "@/lib/auth";
+import { AddHouseForm, DriverOverrideForm, RemoveHouseForm } from "./day-forms";
+
+/** One date of a route: change houses or the driver for that date only. */
+export default async function RouteDay({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ date?: string }> }) {
+  await requireAdmin();
+  const id = Number((await params).id);
+  const { date } = await searchParams;
+  if (!date || !isDate(date)) notFound();
+  const [routes, ds, hs, now] = await Promise.all([deliveryRoutes(), drivers(), houses(), today()]);
+  const route = routes.find((r) => r.id === id);
+  if (!route) notFound();
+
+  const wd = weekdayOf(date);
+  const editable = date >= now;
+  const shifts = route.slots
+    .filter((s) => s.weekday === wd)
+    .sort((a, b) => MEALS.indexOf(a.meal as (typeof MEALS)[number]) - MEALS.indexOf(b.meal as (typeof MEALS)[number]));
+  const runs = (await runsForDate(date)).filter((r) => r.route_key?.startsWith(`r${route.id}-`));
+  const overrides = await sql<{ route_key: string; driver_id: number }>(
+    "SELECT route_key, driver_id FROM run_overrides WHERE run_date=$1 AND route_key LIKE $2", [date, `r${route.id}-%`],
+  );
+  const driverOpts = ds.map((d) => ({ id: d.id, name: d.name, active: d.active }));
+  const driverName = (did: number | null) => ds.find((d) => d.id === did)?.name ?? "No driver";
+
+  return (
+    <>
+      <TopBar
+        title={formatDate(date, { weekday: "long", month: "long", day: "numeric" })}
+        sub={`${route.name} — changes apply to this date only`}
+        back={`/admin/routes/${route.id}`}
+      />
+      <main className="mx-auto max-w-xl px-4 space-y-5 pb-8">
+        {!editable && (
+          <p className="card p-4 text-sm text-muted">This date has passed — shown for reference.</p>
+        )}
+
+        {shifts.length === 0 && (
+          <div className="card p-5 space-y-4">
+            <p className="font-semibold">No delivery this {WEEKDAY_LONG[wd]}.</p>
+            {editable ? (
+              <AddHouseForm
+                routeId={route.id} date={date} chooseMeal
+                houses={hs.filter((h) => h.active).map((h) => ({ id: h.id, name: h.name, address: h.address }))}
+              />
+            ) : (
+              <Empty>Nothing was scheduled.</Empty>
+            )}
+          </div>
+        )}
+
+        {shifts.map((s) => {
+          const key = routeKey(route.id, wd, s.meal);
+          const run = runs.find((r) => r.route_key === key);
+          const driverId = run?.driver_id ?? overrides.find((o) => o.route_key === key)?.driver_id ?? s.driver_id;
+          const stops = run
+            ? run.stops.map((st) => ({ name: st.name, address: st.address, total: stopTotal(st) }))
+            : slotHouses(route, s).map((h) => ({ name: h.name, address: h.address, total: null as number | null }));
+          const onAddrs = new Set(stops.map((st) => st.address));
+          const addable = hs.filter((h) => h.active && !onAddrs.has(h.address))
+            .map((h) => ({ id: h.id, name: h.name, address: h.address }));
+          return (
+            <section key={s.meal} className="card p-5 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-bold text-lg">{MEAL_LABEL[s.meal]}</h2>
+                  <p className="text-sm text-muted">
+                    Driver: <span className="font-semibold text-ink">{driverName(driverId)}</span>
+                    {run?.customized && <span className="chip-special ml-2">Edited for this day</span>}
+                  </p>
+                </div>
+                {run && <span className="text-sm font-bold tabular-nums">${(run.pay_cents / 100).toFixed(2)}</span>}
+              </div>
+
+              {editable && (
+                <DriverOverrideForm routeId={route.id} date={date} meal={s.meal} drivers={driverOpts} currentId={driverId} />
+              )}
+
+              <div className="space-y-2">
+                <h3 className="font-semibold text-[15px]">Houses <span className="text-muted font-medium">({stops.length})</span></h3>
+                {stops.map((st) => (
+                  <div key={st.address} className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{st.name || st.address}</p>
+                      {st.name && <p className="text-[13px] text-muted truncate">{st.address}</p>}
+                    </div>
+                    {st.total !== null && <span className="text-sm font-bold tabular-nums shrink-0">{st.total} meals</span>}
+                    {editable && <RemoveHouseForm routeId={route.id} date={date} meal={s.meal} address={st.address} />}
+                  </div>
+                ))}
+                {stops.length === 0 && <p className="text-sm text-muted">No houses on this delivery.</p>}
+              </div>
+
+              {editable && (
+                <AddHouseForm routeId={route.id} date={date} meal={s.meal} houses={addable} />
+              )}
+            </section>
+          );
+        })}
+      </main>
+    </>
+  );
+}
