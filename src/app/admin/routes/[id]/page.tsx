@@ -71,7 +71,7 @@ export default async function RouteDetail({ params }: { params: Promise<{ id: st
             ) : (
               <MonthCalendar
                 deliveryWeekdays={deliveryWeekdays}
-                dayHref={(date) => `/admin/routes/${route.id}/day?date=${date}`}
+                dayBase={`/admin/routes/${route.id}/day`}
                 year={d.getFullYear()}
                 month={d.getMonth()}
                 today={now}

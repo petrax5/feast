@@ -9,9 +9,9 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** Month grid. Days on the route's delivery weekdays are green; tapping a future day opens the day editor. */
-export function MonthCalendar({ deliveryWeekdays, dayHref, year, month, today }: {
+export function MonthCalendar({ deliveryWeekdays, dayBase, year, month, today }: {
   deliveryWeekdays: number[];
-  dayHref: (date: string) => string;
+  dayBase: string;
   year: number;
   month: number; // 0-indexed
   today: string; // YYYY-MM-DD in the kitchen's timezone
@@ -54,7 +54,7 @@ export function MonthCalendar({ deliveryWeekdays, dayHref, year, month, today }:
             past ? "opacity-45" : "",
           ].join(" ");
           return delivers && !past ? (
-            <Link key={date} href={dayHref(date)} className={cls + " hover:ring-2 hover:ring-done"}>{i + 1}</Link>
+            <Link key={date} href={`${dayBase}?date=${date}`} className={cls + " hover:ring-2 hover:ring-done"}>{i + 1}</Link>
           ) : (
             <span key={date} className={cls}>{i + 1}</span>
           );
