@@ -415,6 +415,30 @@ export async function deleteDeliveryRouteAction(id: number) {
   redirect("/admin/routes");
 }
 
+/** Gives a whole day of a route to another driver; other days stay the same. */
+export async function overrideDayDriverAction(_: FormState, form: FormData): Promise<FormState> {
+  await requireAdmin();
+  const routeId = Number(form.get("route_id")) || null;
+  const date = str(form, "date");
+  const to = Number(form.get("to_driver"));
+  if (!routeId || !to) return { error: "Choose a driver." };
+  if (!isDate(date)) return { error: "Pick a date." };
+  if (date < (await today())) return { error: "That date has already passed." };
+  const wd = weekdayOf(date);
+  const meals = (await sql<{ meal: string }>("SELECT meal FROM route_slots WHERE route_id=$1 AND weekday=$2", [routeId, wd])).map((r) => r.meal);
+  if (!meals.length) return { error: "This route doesn't run that day." };
+  for (const meal of meals) {
+    const key = routeKey(routeId, wd, meal);
+    await sql(
+      "INSERT INTO run_overrides (run_date, route_key, driver_id) VALUES ($1,$2,$3) ON CONFLICT (run_date, route_key) DO UPDATE SET driver_id=$3",
+      [date, key, to],
+    );
+    await sql("UPDATE runs SET driver_id=$1 WHERE route_key=$2 AND run_date=$3 AND status <> 'completed'", [to, key, date]);
+  }
+  revalidatePath("/admin", "layout");
+  return { ok: "Driver changed for the whole day." };
+}
+
 /** Gives one delivery (date + meal) of a route to another driver; other weeks stay the same. */
 export async function overrideDriverAction(_: FormState, form: FormData): Promise<FormState> {
   await requireAdmin();

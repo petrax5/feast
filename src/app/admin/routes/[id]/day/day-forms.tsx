@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { MEALS, MEAL_LABEL } from "@/lib/core";
 import { FormMessage, Submit } from "@/components/ui";
-import { addHouseForDateAction, overrideDriverAction, removeHouseForDateAction, updateStopForDateAction } from "../../../actions";
+import { addHouseForDateAction, overrideDayDriverAction, overrideDriverAction, removeHouseForDateAction, updateStopForDateAction } from "../../../actions";
 
 type HouseOpt = { id: number; name: string; address: string };
 type DriverOpt = { id: number; name: string; active: boolean };
@@ -128,5 +128,42 @@ export function StopEditor({ routeId, date, meal, stop, dishes }: {
         </form>
       )}
     </div>
+  );
+}
+/** Collapsible meal section: header shows the summary, tap to reveal houses and editing. */
+export function MealCard({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="card p-5">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="w-full flex items-center justify-between gap-3 text-left">
+        <div className="min-w-0">
+          <h2 className="font-bold text-lg">{title}</h2>
+          <p className="text-sm text-muted truncate">{sub}</p>
+        </div>
+        <span className="text-muted text-xl shrink-0" aria-hidden>{open ? "\u25BE" : "\u25B8"}</span>
+      </button>
+      {open && <div className="mt-4 space-y-4">{children}</div>}
+    </section>
+  );
+}
+
+/** Swap the driver for the whole day (every meal). */
+export function DayDriverForm({ routeId, date, drivers, currentId }: {
+  routeId: number; date: string; drivers: DriverOpt[]; currentId: number | null;
+}) {
+  const [state, action] = useActionState(overrideDayDriverAction, undefined);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="route_id" value={routeId} />
+      <input type="hidden" name="date" value={date} />
+      <div className="flex gap-2 items-center">
+        <select name="to_driver" className="field" defaultValue={currentId ?? ""} required aria-label="Driver for the whole day">
+          <option value="" disabled>Choose driver…</option>
+          {drivers.filter((d) => d.active).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        <Submit className="btn-primary shrink-0 px-5">Set</Submit>
+      </div>
+      <FormMessage state={state} />
+    </form>
   );
 }

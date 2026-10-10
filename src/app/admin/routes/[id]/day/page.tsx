@@ -4,7 +4,7 @@ import { MEALS, MEAL_LABEL, WEEKDAY_LONG, formatDate, isDate, routeKey, stopTota
 import { sql } from "@/lib/db";
 import { TopBar, Empty } from "@/components/chrome";
 import { requireAdmin } from "@/lib/auth";
-import { AddHouseForm, DriverOverrideForm, StopEditor } from "./day-forms";
+import { AddHouseForm, DayDriverForm, DriverOverrideForm, MealCard, StopEditor } from "./day-forms";
 
 /** One date of a route: change houses or the driver for that date only. */
 export default async function RouteDay({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ date?: string }> }) {
@@ -56,6 +56,28 @@ export default async function RouteDay({ params, searchParams }: { params: Promi
           </div>
         )}
 
+        {editable && shifts.length > 0 && (() => {
+          const ids = [...new Set(shifts.map((s) => {
+            const key = routeKey(route.id, wd, s.meal);
+            const run = runs.find((r) => r.route_key === key);
+            return run?.driver_id ?? overrides.find((o) => o.route_key === key)?.driver_id ?? s.driver_id;
+          }))].filter((x) => x !== null);
+          const dayDriverId = ids.length === 1 ? ids[0] : null;
+          return (
+            <section className="card p-5 space-y-3">
+              <div>
+                <h2 className="font-bold text-lg">Day driver</h2>
+                <p className="text-sm text-muted">
+                  {dayDriverId
+                    ? <>Currently <span className="font-semibold text-ink">{driverName(dayDriverId)}</span> for the whole day.</>
+                    : "Different drivers per meal — set one driver for the whole day:"}
+                </p>
+              </div>
+              <DayDriverForm routeId={route.id} date={date} drivers={driverOpts} currentId={dayDriverId} />
+            </section>
+          );
+        })()}
+
         {shifts.map((s) => {
           const key = routeKey(route.id, wd, s.meal);
           const run = runs.find((r) => r.route_key === key);
@@ -72,18 +94,9 @@ export default async function RouteDay({ params, searchParams }: { params: Promi
           const onAddrs = new Set(stops.map((st) => st.address));
           const addable = hs.filter((h) => h.active && !onAddrs.has(h.address))
             .map((h) => ({ id: h.id, name: h.name, address: h.address }));
+          const sub = `${driverName(driverId)} · ${stops.length} ${stops.length === 1 ? "house" : "houses"}${run?.customized ? " · edited" : ""}`;
           return (
-            <section key={s.meal} className="card p-5 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-bold text-lg">{MEAL_LABEL[s.meal]}</h2>
-                  <p className="text-sm text-muted">
-                    Driver: <span className="font-semibold text-ink">{driverName(driverId)}</span>
-                    {run?.customized && <span className="chip-special ml-2">Edited for this day</span>}
-                  </p>
-                </div>
-                {run && <span className="text-sm font-bold tabular-nums">${(run.pay_cents / 100).toFixed(2)}</span>}
-              </div>
+            <MealCard key={s.meal} title={MEAL_LABEL[s.meal]} sub={sub}>
 
               {editable && (
                 <DriverOverrideForm routeId={route.id} date={date} meal={s.meal} drivers={driverOpts} currentId={driverId} />
@@ -110,7 +123,7 @@ export default async function RouteDay({ params, searchParams }: { params: Promi
               {editable && (
                 <AddHouseForm routeId={route.id} date={date} meal={s.meal} houses={addable} />
               )}
-            </section>
+            </MealCard>
           );
         })}
       </main>

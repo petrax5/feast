@@ -9,9 +9,10 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** Month grid. Days on the route's delivery weekdays are green; tapping a future day opens the day editor. */
-export function MonthCalendar({ deliveryWeekdays, dayBase, year, month, today }: {
+export function MonthCalendar({ deliveryWeekdays, dayBase, year, month, today, overrideDates }: {
   deliveryWeekdays: number[];
   dayBase: string;
+  overrideDates: string[];
   year: number;
   month: number; // 0-indexed
   today: string; // YYYY-MM-DD in the kitchen's timezone
@@ -45,11 +46,12 @@ export function MonthCalendar({ deliveryWeekdays, dayBase, year, month, today }:
           const date = `${y}-${pad(m + 1)}-${pad(i + 1)}`;
           const wd = new Date(y, m, i + 1).getDay();
           const delivers = deliveryWeekdays.includes(wd);
+          const overridden = overrideDates.includes(date);
           const past = date < today;
           const isToday = date === today;
           const cls = [
             "h-10 rounded-xl grid place-items-center text-[15px]",
-            delivers ? "bg-done-soft text-done font-bold" : "text-muted",
+            overridden ? "bg-special-soft text-special font-bold" : delivers ? "bg-done-soft text-done font-bold" : "text-muted",
             isToday ? "ring-2 ring-ink" : "",
             past ? "opacity-45" : "",
           ].join(" ");
@@ -59,6 +61,10 @@ export function MonthCalendar({ deliveryWeekdays, dayBase, year, month, today }:
             <span key={date} className={cls}>{i + 1}</span>
           );
         })}
+      </div>
+      <div className="flex items-center gap-4 mt-3 text-[13px] text-muted">
+        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-done-soft border border-done/40" /> Scheduled</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-special-soft border border-special/40" /> Different driver</span>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { deliveryRoutes, drivers, houses, routeDeliveryWeekdays, routeDriverId, today } from "@/lib/data";
+import { sql } from "@/lib/db";
+import { addDays, weekdayOf } from "@/lib/core";
 import { TopBar } from "@/components/chrome";
 import { ActionButton } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
@@ -19,6 +21,20 @@ export default async function RouteDetail({ params }: { params: Promise<{ id: st
   const addable = hs.filter((h) => h.active && !route.houses.some((m) => m.id === h.id));
   const deliveryWeekdays = routeDeliveryWeekdays(route);
   const d = new Date(now + "T12:00:00");
+  // Dates where at least one meal is handed to a different driver than usual -> orange on the calendar.
+  const monthStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  const ovr = await sql<{ run_date: string; meal: string; driver_id: number }>(
+    `SELECT run_date, split_part(route_key, '-', 3) AS meal, driver_id FROM run_overrides WHERE route_key LIKE $1 AND run_date >= $2 AND run_date < $3`,
+    [`r${route.id}-%`, monthStart, addDays(monthStart, 185)],
+  );
+  const overrideDates = [...new Set(
+    ovr
+      .filter((o) => {
+        const usual = route.slots.find((sl) => sl.weekday === weekdayOf(o.run_date) && sl.meal === o.meal)?.driver_id ?? null;
+        return o.driver_id !== usual;
+      })
+      .map((o) => o.run_date),
+  )];
 
   const moveBtn = (h: { id: number }, i: number, dir: -1 | 1, label: string) => {
     const disabled = dir === -1 ? i === 0 : i === route.houses.length - 1;
@@ -72,6 +88,7 @@ export default async function RouteDetail({ params }: { params: Promise<{ id: st
               <MonthCalendar
                 deliveryWeekdays={deliveryWeekdays}
                 dayBase={`/admin/routes/${route.id}/day`}
+                overrideDates={overrideDates}
                 year={d.getFullYear()}
                 month={d.getMonth()}
                 today={now}
