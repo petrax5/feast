@@ -15,7 +15,7 @@ export default async function EditHouse({ params }: { params: Promise<{ id: stri
       <main className="mx-auto max-w-xl px-4 space-y-3">
         <HouseForm
           dishes={dishes.filter((d) => d.active || house.items[d.id])}
-          initial={{ id: house.id, name: house.name, address: house.address, items: house.items, notes: house.notes }}
+          initial={{ id: house.id, name: house.name, address: house.address, items: house.items, notes: house.notes, schedule: house.schedule ?? {} }}
         />
         <ActionButton
           action={toggleHouseAction.bind(null, house.id)}

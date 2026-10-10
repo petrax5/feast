@@ -157,9 +157,21 @@ export async function saveHouseAction(_: FormState, form: FormData): Promise<For
     return { error: "Something went wrong reading the form. Try again." };
   }
   if (!Object.keys(items).length) return { error: "Enter the number of clients or at least one special." };
-  const values = [name, address, JSON.stringify(items), notes];
-  if (id) await sql("UPDATE houses SET name=$1, address=$2, items=$3, notes=$4 WHERE id=$5", [...values, id]);
-  else await sql("INSERT INTO houses (name, address, items, notes) VALUES ($1,$2,$3,$4)", values);
+  let schedule: Record<string, string[]> = {};
+  try {
+    const raw = JSON.parse(String(form.get("schedule") ?? "{}")) as Record<string, unknown>;
+    for (const [k, v] of Object.entries(raw)) {
+      const wd = Number(k);
+      if (!Number.isInteger(wd) || wd < 0 || wd > 6) continue;
+      const ms = (Array.isArray(v) ? v : []).map(String).filter((m) => (MEALS as readonly string[]).includes(m));
+      if (ms.length) schedule[String(wd)] = [...new Set(ms)];
+    }
+  } catch {
+    return { error: "Something went wrong reading the form. Try again." };
+  }
+  const values = [name, address, JSON.stringify(items), notes, JSON.stringify(schedule)];
+  if (id) await sql("UPDATE houses SET name=$1, address=$2, items=$3, notes=$4, schedule=$5 WHERE id=$6", [...values, id]);
+  else await sql("INSERT INTO houses (name, address, items, notes, schedule) VALUES ($1,$2,$3,$4,$5)", values);
   await refreshRuns();
   revalidatePath("/admin", "layout");
   redirect("/admin/houses");

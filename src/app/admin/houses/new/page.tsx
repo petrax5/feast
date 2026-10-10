@@ -8,7 +8,7 @@ export default async function NewHouse() {
     <>
       <TopBar title="New house" back="/admin/houses" />
       <main className="mx-auto max-w-xl px-4">
-        <HouseForm dishes={dishes} initial={{ name: "", address: "", items: {}, notes: "" }} />
+        <HouseForm dishes={dishes} initial={{ name: "", address: "", items: {}, notes: "", schedule: {} }} />
       </main>
     </>
   );

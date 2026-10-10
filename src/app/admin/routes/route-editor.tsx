@@ -107,9 +107,11 @@ export function RouteEditor({
   const addHouse = () => {
     const id = Number(picking);
     if (!id) return;
+    const sched = (byId.get(id)?.schedule ?? {}) as Record<string, string[]>;
     setOrder([...order, id]);
-    // A new house starts off in every existing shift; turn it on per day with B/L/D.
-    setSlots(slots.map((s) => ({ ...s, skip: [...s.skip, id] })));
+    // The house's own schedule decides which shifts it starts on; the rest stay skipped.
+    // (A house with no schedule starts off everywhere, as before.)
+    setSlots(slots.map((s) => ((sched[String(s.weekday)] ?? []).includes(s.meal) ? s : { ...s, skip: [...s.skip, id] })));
     setPicking("");
   };
 

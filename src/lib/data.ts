@@ -12,6 +12,8 @@ export type House = {
   items: Record<string, number>;
   notes: string;
   active: boolean;
+  /** Default weekly schedule: weekday ("0"-"6", Sun-Sat) -> meals wanted. Used when adding the house to a route. */
+  schedule: Record<string, string[]>;
 };
 
 /** A day + meal the route runs, its driver, and houses left out that time. */
